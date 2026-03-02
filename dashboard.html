@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chest Echo 課程數據儀表板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #020617;
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(30, 41, 59, 0.7);
+        }
+        .chart-container {
+            position: relative;
+            height: 250px;
+            width: 100%;
+        }
+        .loading-shimmer {
+            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        /* 自定義捲軸 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
+</head>
+<body class="text-slate-200 min-h-screen p-4 md:p-8">
+
+    <!-- Error Overlay (Hidden by default) -->
+    <div id="error-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md hidden">
+        <div class="glass-card max-w-lg w-full p-8 rounded-3xl border-red-500/30 text-center shadow-2xl">
+            <div class="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i data-lucide="shield-alert" class="w-8 h-8 text-red-500"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-white mb-2">資料連線受阻</h2>
+            <p id="error-message" class="text-sm text-slate-400 mb-6 leading-relaxed">Failed to fetch. 瀏覽器攔截了來自 Google 的回應。</p>
+            
+            <div class="text-left bg-slate-900/80 p-5 rounded-2xl text-[12px] font-sans text-slate-400 mb-6 space-y-3 border border-slate-800">
+                <p class="font-bold text-cyan-400 flex items-center gap-2">
+                    <i data-lucide="settings-2" class="w-4 h-4"></i> 請按照以下步驟檢查 GAS：
+                </p>
+                <ol class="list-decimal ml-5 space-y-2">
+                    <li>開啟 Apps Script 編輯器，點擊右上角 <span class="text-white font-medium">「部署」 > 「管理部署」</span>。</li>
+                    <li>編輯目前的部署，確保 <span class="text-white font-medium">「執行身分」</span> 設為 <span class="text-cyan-500 font-bold">「我 (Me)」</span>。</li>
+                    <li>確保 <span class="text-white font-medium">「誰可以存取」</span> 設為 <span class="text-cyan-500 font-bold">「所有人 (Anyone)」</span>。</li>
+                    <li>確認您的 <code class="bg-slate-800 px-1 rounded text-pink-400">doGet</code> 函式已包含資料回傳邏輯。</li>
+                </ol>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button onclick="hideError()" class="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 transition-all text-sm font-medium border border-slate-700">
+                    載入展示數據 (Demo)
+                </button>
+                <button onclick="fetchData()" class="flex-1 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold transition-all text-sm shadow-lg shadow-cyan-900/40">
+                    重新嘗試連線
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-medium mb-2">
+                <i data-lucide="activity" class="w-3 h-3"></i> REAL-TIME MONITORING
+            </div>
+            <h1 class="text-3xl font-black text-white tracking-tight">CHEST ECHO 課程數據儀表板</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="connection-status" class="text-xs font-medium px-4 py-2 rounded-xl bg-slate-900/50 border border-slate-800 min-w-[140px]">
+                <span class="flex items-center gap-2 text-slate-500 animate-pulse">
+                    <span class="w-2 h-2 bg-slate-500 rounded-full"></span> 偵測連線中...
+                </span>
+            </div>
+            <button onclick="fetchData()" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all text-sm font-bold text-slate-200">
+                <i data-lucide="refresh-cw" id="refresh-icon" class="w-4 h-4"></i> 同步資料
+            </button>
+            <div class="text-right min-w-[100px]">
+                <p class="text-[10px] text-slate-500 uppercase font-black">Last Update</p>
+                <p id="last-update" class="text-xs text-cyan-400 font-mono font-bold">--:--:--</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="dashboard-content" class="max-w-7xl mx-auto space-y-6">
+        <!-- Top Stats Row -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="glass-card p-6 rounded-3xl flex items-center gap-5">
+                <div class="w-14 h-14 bg-cyan-500/20 rounded-2xl flex items-center justify-center text-cyan-400 shadow-inner">
+                    <i data-lucide="users" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] text-slate-500 font-black uppercase tracking-widest">累積報名</p>
+                    <h3 id="stat-total" class="text-3xl font-black text-white">--</h3>
+                </div>
+            </div>
+            <div class="glass-card p-6 rounded-3xl flex items-center gap-5">
+                <div class="w-14 h-14 bg-purple-500/20 rounded-2xl flex items-center justify-center text-purple-400 shadow-inner">
+                    <i data-lucide="brain-circuit" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] text-slate-500 font-black uppercase tracking-widest">平均信心</p>
+                    <h3 id="stat-avg-confidence" class="text-3xl font-black text-white">--</h3>
+                </div>
+            </div>
+            <div class="glass-card p-6 rounded-3xl flex items-center gap-5">
+                <div class="w-14 h-14 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400 shadow-inner">
+                    <i data-lucide="calendar-days" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] text-slate-500 font-black uppercase tracking-widest">熱門場次</p>
+                    <h3 id="stat-top-date" class="text-xl font-black text-white truncate max-w-[120px]">--</h3>
+                </div>
+            </div>
+            <div class="glass-card p-6 rounded-3xl flex items-center gap-5">
+                <div class="w-14 h-14 bg-orange-500/20 rounded-2xl flex items-center justify-center text-orange-400 shadow-inner">
+                    <i data-lucide="graduation-cap" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] text-slate-500 font-black uppercase tracking-widest">初學者佔比</p>
+                    <h3 id="stat-beginner" class="text-3xl font-black text-white">--</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="glass-card p-6 rounded-3xl lg:col-span-1 border-t-2 border-t-cyan-500/20">
+                <div class="flex items-center justify-between mb-6">
+                    <h4 class="text-sm font-black text-slate-400 uppercase tracking-widest">學員身分組成</h4>
+                    <i data-lucide="pie-chart" class="w-4 h-4 text-slate-600"></i>
+                </div>
+                <div class="chart-container">
+                    <canvas id="chart-position"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-card p-6 rounded-3xl lg:col-span-2 border-t-2 border-t-blue-500/20">
+                <div class="flex items-center justify-between mb-6">
+                    <h4 class="text-sm font-black text-slate-400 uppercase tracking-widest">各梯次預約熱度</h4>
+                    <i data-lucide="bar-chart-3" class="w-4 h-4 text-slate-600"></i>
+                </div>
+                <div class="chart-container">
+                    <canvas id="chart-dates"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-card p-8 rounded-3xl lg:col-span-1 border-t-2 border-t-purple-500/20">
+                <div class="flex items-center justify-between mb-6">
+                    <h4 class="text-sm font-black text-slate-400 uppercase tracking-widest">前測信心維度</h4>
+                    <i data-lucide="radar" class="w-4 h-4 text-slate-600"></i>
+                </div>
+                <div class="chart-container flex items-center justify-center">
+                    <canvas id="chart-radar"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-card p-6 rounded-3xl lg:col-span-2 border-t-2 border-t-emerald-500/20">
+                <div class="flex items-center justify-between mb-6">
+                    <h4 class="text-sm font-black text-slate-400 uppercase tracking-widest">臨床技能熟練度現況分析</h4>
+                    <i data-lucide="bar-chart-horizontal" class="w-4 h-4 text-slate-600"></i>
+                </div>
+                <div class="chart-container">
+                    <canvas id="chart-skills"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 設定 ---
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyMZefwS1kfbzP57SmKDLkE3l0mZkGscp-iOvE40JJlib32Uup8DYRB6r62nHjZhOSgmw/exec";
+        let charts = {};
+
+        // --- 輔助函式 ---
+        const avg = (arr, key) => {
+            if (!arr || arr.length === 0) return 0;
+            const valid = arr.filter(r => r.selfEfficacy && !isNaN(Number(r.selfEfficacy[key])));
+            return valid.length > 0 ? valid.reduce((s, r) => s + Number(r.selfEfficacy[key]), 0) / valid.length : 0;
+        };
+
+        const skillDist = (arr, key) => {
+            const counts = { '從未看過': 0, '在指導下操作過': 0, '可獨立完成': 0 };
+            arr.forEach(r => {
+                const val = (r.experience && r.experience[key]) ? r.experience[key] : '從未看過';
+                if (counts.hasOwnProperty(val)) counts[val]++;
+            });
+            return counts;
+        };
+
+        function hideError() {
+            document.getElementById('error-overlay').classList.add('hidden');
+            demoData();
+        }
+
+        /**
+         * 核心抓取函式：嘗試 Fetch，失敗則切換策略
+         */
+        async function fetchData() {
+            const refreshIcon = document.getElementById('refresh-icon');
+            const statusBadge = document.getElementById('connection-status');
+            const errorOverlay = document.getElementById('error-overlay');
+            
+            refreshIcon.classList.add('animate-spin');
+            errorOverlay.classList.add('hidden');
+            
+            // 由於 Apps Script 的重新導向問題，fetch 可能會因為 CORS 失敗
+            // 我們這裡嘗試加上 cache buster
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超時
+
+                const response = await fetch(`${SCRIPT_URL}?action=getData&v=${Date.now()}`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    redirect: 'follow'
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const result = await response.json();
+                
+                if (result.status === "success" && result.data) {
+                    updateDashboard(result.data);
+                    statusBadge.innerHTML = `<span class="flex items-center gap-2 text-emerald-400 font-bold">
+                        <span class="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span> LIVE CLOUD
+                    </span>`;
+                } else {
+                    throw new Error(result.message || "Invalid Data");
+                }
+            } catch (error) {
+                console.error("Fetch API failed, trying fallback...", error);
+                
+                // 這裡是一個「終極手段」：如果 Fetch 報 CORS 錯誤，通常是沒救了
+                // 我們直接切換到 Error Overlay，但也讓使用者可以選 Demo
+                errorOverlay.classList.remove('hidden');
+                document.getElementById('error-message').innerText = `資料讀取失敗 (${error.message})`;
+                
+                statusBadge.innerHTML = `<span class="flex items-center gap-2 text-orange-400 font-bold">
+                    <i data-lucide="cloud-off" class="w-3 h-3"></i> OFFLINE MODE
+                </span>`;
+                demoData();
+            } finally {
+                refreshIcon.classList.remove('animate-spin');
+                document.getElementById('last-update').innerText = new Date().toLocaleTimeString();
+                lucide.createIcons();
+            }
+        }
+
+        function updateDashboard(data) {
+            if (!data || data.length === 0) return;
+            
+            const total = data.length;
+            document.getElementById('stat-total').innerText = total;
+
+            // 1. 身分分佈
+            const positions = {};
+            data.forEach(row => {
+                const p = row.position || '其他';
+                positions[p] = (positions[p] || 0) + 1;
+            });
+            updatePieChart('chart-position', positions);
+
+            // 2. 日期熱度
+            const dateCounts = {};
+            data.forEach(row => {
+                const rowDates = (row.selectedDates || "").split(", ");
+                rowDates.forEach(d => { if(d) dateCounts[d] = (dateCounts[d] || 0) + 1; });
+            });
+            updateBarChart('chart-dates', dateCounts);
+
+            // 3. 信心平均值
+            const confidence = {
+                probe: avg(data, 'probe'),
+                recognition: avg(data, 'recognition'),
+                proactive: avg(data, 'proactive'),
+                integration: avg(data, 'integration')
+            };
+            updateRadarChart('chart-radar', confidence);
+            
+            const totalAvg = (confidence.probe + confidence.recognition + confidence.proactive + confidence.integration) / 4;
+            document.getElementById('stat-avg-confidence').innerText = totalAvg.toFixed(1);
+
+            // 4. 初學者比例
+            const beginners = data.filter(row => row.previousTraining === "無").length;
+            document.getElementById('stat-beginner').innerText = total > 0 ? Math.round((beginners/total)*100) + "%" : "0%";
+            
+            // 找出最熱門日期
+            const sortedDates = Object.entries(dateCounts).sort((a,b) => b[1]-a[1]);
+            document.getElementById('stat-top-date').innerText = sortedDates[0]?.[0] || "--";
+
+            // 5. 技能熟練度
+            const skills = {
+                pneumothorax: skillDist(data, 'pneumothorax'),
+                pleuralEffusion: skillDist(data, 'pleuralEffusion'),
+                consolidation: skillDist(data, 'consolidation'),
+                procedure: skillDist(data, 'procedure')
+            };
+            updateSkillChart('chart-skills', skills);
+        }
+
+        // --- 圖表繪製 ---
+
+        function updatePieChart(id, data) {
+            if (charts[id]) charts[id].destroy();
+            charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(data),
+                    datasets: [{
+                        data: Object.values(data),
+                        backgroundColor: ['#22d3ee', '#3b82f6', '#8b5cf6', '#f43f5e', '#f59e0b', '#10b981', '#6366f1'],
+                        borderWidth: 0,
+                        hoverOffset: 15
+                    }]
+                },
+                options: { 
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10, weight: 'bold' }, padding: 15 } } 
+                    }, 
+                    cutout: '75%' 
+                }
+            });
+        }
+
+        function updateBarChart(id, data) {
+            if (charts[id]) charts[id].destroy();
+            const ctx = document.getElementById(id).getContext('2d');
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, '#0ea5e9');
+            gradient.addColorStop(1, '#020617');
+
+            charts[id] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(data),
+                    datasets: [{
+                        label: '預約人數',
+                        data: Object.values(data),
+                        backgroundColor: gradient,
+                        borderColor: '#38bdf8',
+                        borderWidth: 1,
+                        borderRadius: 10,
+                        barThickness: 30
+                    }]
+                },
+                options: { 
+                    maintainAspectRatio: false,
+                    scales: { 
+                        y: { beginAtZero: true, grid: { color: '#1e293b' }, ticks: { color: '#64748b', stepSize: 1 } },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { weight: 'bold' } } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function updateRadarChart(id, data) {
+            if (charts[id]) charts[id].destroy();
+            charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
+                type: 'radar',
+                data: {
+                    labels: ['探頭選擇', '影像辨識', '主動考慮', '決策整合'],
+                    datasets: [{
+                        label: '信心程度',
+                        data: [data.probe, data.recognition, data.proactive, data.integration],
+                        backgroundColor: 'rgba(34, 211, 238, 0.15)',
+                        borderColor: '#22d3ee',
+                        pointBackgroundColor: '#22d3ee',
+                        pointBorderColor: '#fff',
+                        pointHoverRadius: 6,
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            min: 0, max: 5,
+                            grid: { color: '#334155' },
+                            angleLines: { color: '#334155' },
+                            pointLabels: { color: '#94a3b8', font: { size: 11, weight: 'bold' } },
+                            ticks: { display: false, stepSize: 1 }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function updateSkillChart(id, data) {
+            if (charts[id]) charts[id].destroy();
+            const labels = ['氣胸', '肋膜積液', '實變/肺炎', '指引穿刺'];
+            charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: '從未看過', data: [data.pneumothorax['從未看過'], data.pleuralEffusion['從未看過'], data.consolidation['從未看過'], data.procedure['從未看過']], backgroundColor: '#ef4444' },
+                        { label: '指導下', data: [data.pneumothorax['在指導下操作過'], data.pleuralEffusion['在指導下操作過'], data.consolidation['在指導下操作過'], data.procedure['在指導下操作過']], backgroundColor: '#f59e0b' },
+                        { label: '可獨立', data: [data.pneumothorax['可獨立完成'], data.pleuralEffusion['可獨立完成'], data.consolidation['可獨立完成'], data.procedure['可獨立完成']], backgroundColor: '#10b981' }
+                    ]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: { 
+                        x: { stacked: true, grid: { color: '#1e293b' }, ticks: { color: '#64748b' } },
+                        y: { stacked: true, grid: { display: false }, ticks: { color: '#cbd5e1', font: { weight: 'bold' } } }
+                    },
+                    plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } } }
+                }
+            });
+        }
+
+        function demoData() {
+            const mock = Array.from({length: 40}, () => ({
+                position: ['PGY1', 'PGY2', 'R1', 'R2', 'Fellow'][Math.floor(Math.random()*5)],
+                selectedDates: ['3/11', '3/18', '3/25', '3/12', '3/19'].filter(() => Math.random() > 0.6).join(", ") || "3/11",
+                previousTraining: Math.random() > 0.7 ? '無' : '有，1 次',
+                selfEfficacy: { probe: 2 + Math.random()*2.5, recognition: 1 + Math.random()*3.5, proactive: 2 + Math.random()*2, integration: 1.5 + Math.random()*2 },
+                experience: { 
+                    pneumothorax: ['從未看過', '在指導下操作過', '可獨立完成'][Math.floor(Math.random()*3)],
+                    pleuralEffusion: ['從未看過', '在指導下操作過', '可獨立完成'][Math.floor(Math.random()*3)],
+                    consolidation: ['從未看過', '在指導下操作過', '可獨立完成'][Math.floor(Math.random()*3)],
+                    procedure: ['從未看過', '在指導下操作過'][Math.floor(Math.random()*2)]
+                }
+            }));
+            updateDashboard(mock);
+        }
+
+        window.onload = () => {
+            lucide.createIcons();
+            fetchData();
+        };
+    </script>
+</body>
+</html>
