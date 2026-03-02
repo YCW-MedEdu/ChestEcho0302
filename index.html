@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chest Echo 報名與課前問卷</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #020617; /* slate-950 */
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(30, 41, 59, 0.5);
+        }
+        .step-content {
+            display: none;
+        }
+        .step-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        input:focus {
+            outline: none;
+            border-color: rgba(6, 182, 212, 0.5);
+            box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.3);
+        }
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="text-slate-200 min-h-screen p-4 md:p-8">
+
+    <!-- Header -->
+    <div class="max-w-4xl mx-auto mb-10 text-center">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm font-medium mb-4 uppercase tracking-wider">
+            <i data-lucide="stethoscope" class="w-4 h-4"></i> Clinical Skills Enhancement
+        </div>
+        <h1 class="text-3xl md:text-4xl font-black bg-gradient-to-r from-white to-cyan-400 bg-clip-text text-transparent mb-4">
+            CHEST ECHO 課程報名與課前問卷
+        </h1>
+        <p class="text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            透過系統性胸腔超音波訓練，提升臨床即時評估能力，回應學員對於高品質影像診斷課程之需求。
+        </p>
+    </div>
+
+    <div class="max-w-3xl mx-auto">
+        <!-- Progress Bar -->
+        <div class="flex justify-between mb-8 relative">
+            <div class="absolute top-1/2 left-0 w-full h-0.5 bg-slate-700 -translate-y-1/2 z-0"></div>
+            <div id="progress-steps" class="flex justify-between w-full relative z-10">
+                <!-- Steps will be rendered here by JS -->
+            </div>
+        </div>
+
+        <!-- Form Card -->
+        <div id="form-container" class="glass-card rounded-2xl p-6 md:p-10 shadow-2xl min-h-[500px] flex flex-col">
+            
+            <!-- STEP 1: 基本資料 -->
+            <div id="step-1" class="step-content active space-y-8">
+                <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                    <i data-lucide="user" class="text-cyan-500 w-6 h-6"></i>
+                    <h2 class="text-xl font-bold text-white">A. 基本資料</h2>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-slate-400">您的姓名</label>
+                        <input type="text" id="input-name" placeholder="請輸入姓名" class="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 transition-all">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-slate-400">人事號</label>
+                        <input type="text" id="input-staffId" placeholder="請輸入人事號" class="w-full bg-slate-800/50 border border-slate-700 rounded-xl px-4 py-3 transition-all">
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <label class="flex items-center gap-2 text-sm font-medium text-slate-400">
+                        <i data-lucide="briefcase" class="w-4 h-4"></i> 您目前的身分是？
+                    </label>
+                    <div id="position-options" class="flex flex-wrap gap-3">
+                        <!-- Buttons added by JS -->
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <label class="flex items-center gap-2 text-sm font-medium text-slate-400">
+                        <i data-lucide="graduation-cap" class="w-4 h-4"></i> 您過去是否曾接受過正式胸腔超音波訓練？
+                    </label>
+                    <div id="training-options" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <!-- Buttons added by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 2: 實作經驗 -->
+            <div id="step-2" class="step-content space-y-8">
+                <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                    <i data-lucide="activity" class="text-cyan-500 w-6 h-6"></i>
+                    <h2 class="text-xl font-bold text-white">實作經驗評估</h2>
+                </div>
+                <div id="experience-matrix" class="space-y-6">
+                    <!-- Matrix items added by JS -->
+                </div>
+            </div>
+
+            <!-- STEP 3: 課程報名 -->
+            <div id="step-3" class="step-content space-y-8">
+                <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                    <i data-lucide="calendar" class="text-cyan-500 w-6 h-6"></i>
+                    <h2 class="text-xl font-bold text-white">B. 課程報名</h2>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="p-4 rounded-xl bg-cyan-500/5 border border-cyan-500/20 text-center">
+                        <p class="text-xs text-cyan-400 font-bold mb-1 uppercase">大堂課 (必修)</p>
+                        <p class="text-sm text-slate-200 font-semibold">3/9 (一) 12:00 - 14:00</p>
+                        <p class="text-[10px] text-slate-400 mt-1">地點：國際會議廳</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 text-center">
+                        <p class="text-xs text-emerald-400 font-bold mb-1 uppercase">實作課程 (選填)</p>
+                        <p class="text-sm text-slate-200 font-semibold">14:00 - 16:00</p>
+                        <p class="text-[10px] text-slate-400 mt-1">地點：二樓檢查室 12 號門</p>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <p class="text-sm font-medium text-slate-400 flex items-center gap-2">
+                        <i data-lucide="info" class="w-4 h-4 text-cyan-500"></i> 請選出您可以參加的「所有」時間 (複選)：
+                    </p>
+                    <div id="date-options" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <!-- Dates added by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 4: 自我效能與動機 -->
+            <div id="step-4" class="step-content space-y-8">
+                <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                    <i data-lucide="target" class="text-cyan-500 w-6 h-6"></i>
+                    <h2 class="text-xl font-bold text-white">C. 自我效能與期待</h2>
+                </div>
+                <div id="efficacy-scales" class="space-y-6">
+                    <!-- Likert scales added by JS -->
+                </div>
+                <div class="space-y-4 pt-6 border-t border-slate-800">
+                    <p class="text-sm font-bold text-slate-200">D. 您參加本課程的主要動機是？ (複選)</p>
+                    <div id="motivation-options" class="flex flex-wrap gap-2">
+                        <!-- Motivation tags added by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="mt-auto pt-10 flex justify-between items-center gap-4">
+                <button id="btn-prev" class="hidden px-6 py-3 rounded-xl border border-slate-700 text-slate-400 flex items-center gap-2 hover:bg-slate-800 transition-all">
+                    <i data-lucide="chevron-left" class="w-5 h-5"></i> 上一步
+                </button>
+                <div class="flex-1"></div>
+                <button id="btn-next" class="px-10 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold flex items-center gap-2 shadow-lg shadow-cyan-900/40 transition-all active:scale-95">
+                    下一步 <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                </button>
+                <button id="btn-submit" class="hidden px-12 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold flex items-center gap-2 shadow-xl shadow-cyan-900/40 transition-all active:scale-95">
+                    提交報名表 <i data-lucide="clipboard-check" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Success Message -->
+        <div id="success-screen" class="hidden glass-card rounded-2xl p-8 text-center shadow-2xl">
+            <div class="w-20 h-20 bg-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i data-lucide="check-circle-2" class="w-10 h-10 text-cyan-400"></i>
+            </div>
+            <h2 class="text-2xl font-bold mb-4 text-cyan-400">報名已完成</h2>
+            <p class="text-slate-400 mb-8 leading-relaxed">
+                感謝您的填寫！您的資料已成功寫入雲端試算表。<br/>
+                <span class="text-cyan-500/80 mt-2 block font-medium">大堂課：3/9 (一) 12:00 @國際會議廳</span>
+            </p>
+            <button onclick="window.location.reload()" class="w-full py-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-cyan-500/30 transition-all">
+                返回填寫另一份
+            </button>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-8 text-center text-slate-600 text-[10px] tracking-widest uppercase">
+            Department of Internal Medicine © 2025 Chest Ultrasound Training Program
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 資料與配置 ---
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyMZefwS1kfbzP57SmKDLkE3l0mZkGscp-iOvE40JJlib32Uup8DYRB6r62nHjZhOSgmw/exec";
+        
+        let currentStep = 1;
+        const formData = {
+            name: '',
+            staffId: '',
+            position: '',
+            previousTraining: '',
+            experience: { pneumothorax: '', pleuralEffusion: '', consolidation: '', procedure: '' },
+            selectedDates: [],
+            selfEfficacy: { probe: 3, recognition: 3, proactive: 3, integration: 3 },
+            motivation: []
+        };
+
+        const config = {
+            positions: ['PGY1', 'PGY2（內科組）', 'PGY2（不分組）', 'R1', 'R2', 'R3', 'Fellow'],
+            trainings: ['無', '有，1 次', '有，2–5 次', '有，>5 次'],
+            expLevels: ['從未看過', '在指導下操作過', '可獨立完成'],
+            expItems: [
+                { id: 'pneumothorax', label: '用 Chest Echo 看 Pneumothorax' },
+                { id: 'pleuralEffusion', label: '用 Chest Echo 看 Pleural Effusion' },
+                { id: 'consolidation', label: '用 Chest Echo 看 Atelectasis, Pneumonia/Consolidation' },
+                { id: 'procedure', label: 'Chest Echo 指引下執行 Thoracocentesis/Pigtail' }
+            ],
+            dates: [
+                { id: '3/11', label: '3/11 (三)' }, { id: '3/12', label: '3/12 (四)' }, 
+                { id: '3/18', label: '3/18 (三)' }, { id: '3/19', label: '3/19 (四)' },
+                { id: '3/25', label: '3/25 (三)' }, { id: '3/26', label: '3/26 (四)' }
+            ],
+            efficacyItems: [
+                { id: 'probe', label: '我能正確選擇適合 Chest Echo 的探頭' },
+                { id: 'recognition', label: '我能辨識正常與異常影像' },
+                { id: 'proactive', label: '我在病房會主動考慮使用 Chest Echo 輔助診斷' },
+                { id: 'integration', label: '我能將胸部超音波結果整合進臨床決策' }
+            ],
+            motivations: ['臨床工作需要', '提升急救處置能力', '補足過去訓練不足', '對超音波有濃厚興趣', '未來執業考量', '教學需求']
+        };
+
+        // --- 2. 渲染 UI 元件 ---
+
+        function renderUI() {
+            // Render Progress Bar
+            const prog = document.getElementById('progress-steps');
+            prog.innerHTML = [1, 2, 3, 4].map(i => `
+                <div class="relative z-10 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 border ${
+                    currentStep >= i ? 'bg-cyan-500 text-white border-cyan-400' : 'bg-slate-800 text-slate-400 border-slate-600'
+                }">
+                    ${currentStep > i ? '<i data-lucide="check" class="w-4 h-4"></i>' : i}
+                </div>
+            `).join('');
+
+            // Render Positions
+            const posDiv = document.getElementById('position-options');
+            posDiv.innerHTML = config.positions.map(p => `
+                <button onclick="updateFormData('position', '${p}')" class="px-4 py-2 rounded-lg text-sm border transition-all ${
+                    formData.position === p ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-slate-800/50 border-slate-700 text-slate-400'
+                }">${p}</button>
+            `).join('');
+
+            // Render Training
+            const trainDiv = document.getElementById('training-options');
+            trainDiv.innerHTML = config.trainings.map(t => `
+                <button onclick="updateFormData('previousTraining', '${t}')" class="px-3 py-3 rounded-xl text-xs border flex items-center justify-center text-center transition-all ${
+                    formData.previousTraining === t ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-slate-800/50 border-slate-700 text-slate-400'
+                }">${t}</button>
+            `).join('');
+
+            // Render Experience Matrix
+            const matrixDiv = document.getElementById('experience-matrix');
+            matrixDiv.innerHTML = config.expItems.map(item => `
+                <div class="space-y-3 p-4 rounded-xl bg-slate-800/30 border border-slate-800/50">
+                    <p class="text-sm font-semibold text-slate-200">${item.label}</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        ${config.expLevels.map(lvl => `
+                            <button onclick="updateExperience('${item.id}', '${lvl}')" class="py-2 px-1 rounded-lg text-[10px] border text-center transition-all ${
+                                formData.experience[item.id] === lvl ? 'bg-cyan-500/30 border-cyan-500 text-cyan-200' : 'bg-slate-900 border-slate-700 text-slate-500'
+                            }">${lvl}</button>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            // Render Dates
+            const dateDiv = document.getElementById('date-options');
+            dateDiv.innerHTML = config.dates.map(d => `
+                <button onclick="toggleDate('${d.id}')" class="p-4 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                    formData.selectedDates.includes(d.id) ? 'bg-cyan-500 border-cyan-400 text-white' : 'bg-slate-800/50 border-slate-700 text-slate-400'
+                }">
+                    <span class="text-xs font-bold">${d.label}</span>
+                    <span class="text-[9px] opacity-70">14:00-16:00</span>
+                </button>
+            `).join('');
+
+            // Render Efficacy Scales
+            const efficacyDiv = document.getElementById('efficacy-scales');
+            efficacyDiv.innerHTML = config.efficacyItems.map(item => `
+                <div class="space-y-3">
+                    <p class="text-sm text-slate-300">${item.label}</p>
+                    <div class="flex justify-between items-center gap-2">
+                        ${[1, 2, 3, 4, 5].map(n => `
+                            <button onclick="updateEfficacy('${item.id}', ${n})" class="flex-1 py-2 rounded-lg text-sm font-bold border transition-all ${
+                                formData.selfEfficacy[item.id] === n ? 'bg-cyan-500 border-cyan-400 text-white' : 'bg-slate-800/50 border-slate-700 text-slate-500'
+                            }">${n}</button>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            // Render Motivation
+            const motDiv = document.getElementById('motivation-options');
+            motDiv.innerHTML = config.motivations.map(m => `
+                <button onclick="toggleMotivation('${m}')" class="px-4 py-2 rounded-full text-xs border transition-all ${
+                    formData.motivation.includes(m) ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-slate-800/50 border-slate-700 text-slate-500'
+                }">${m}</button>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        // --- 3. 邏輯處理 ---
+
+        function updateFormData(key, val) {
+            formData[key] = val;
+            renderUI();
+        }
+
+        function updateExperience(id, lvl) {
+            formData.experience[id] = lvl;
+            renderUI();
+        }
+
+        function toggleDate(id) {
+            const idx = formData.selectedDates.indexOf(id);
+            if (idx > -1) formData.selectedDates.splice(idx, 1);
+            else formData.selectedDates.push(id);
+            renderUI();
+        }
+
+        function updateEfficacy(id, n) {
+            formData.selfEfficacy[id] = n;
+            renderUI();
+        }
+
+        function toggleMotivation(m) {
+            const idx = formData.motivation.indexOf(m);
+            if (idx > -1) formData.motivation.splice(idx, 1);
+            else formData.motivation.push(m);
+            renderUI();
+        }
+
+        function updateStep() {
+            // Hide all steps
+            document.querySelectorAll('.step-content').forEach(s => s.classList.remove('active'));
+            // Show current step
+            document.getElementById(`step-${currentStep}`).classList.add('active');
+
+            // Button visibility
+            document.getElementById('btn-prev').classList.toggle('hidden', currentStep === 1);
+            document.getElementById('btn-next').classList.toggle('hidden', currentStep === 4);
+            document.getElementById('btn-submit').classList.toggle('hidden', currentStep !== 4);
+
+            renderUI();
+        }
+
+        // --- 4. 監聽與提交 ---
+
+        document.getElementById('btn-next').addEventListener('click', () => {
+            currentStep++;
+            updateStep();
+        });
+
+        document.getElementById('btn-prev').addEventListener('click', () => {
+            currentStep--;
+            updateStep();
+        });
+
+        document.getElementById('input-name').addEventListener('input', (e) => formData.name = e.target.value);
+        document.getElementById('input-staffId').addEventListener('input', (e) => formData.staffId = e.target.value);
+
+        async function handleSubmit() {
+            const btn = document.getElementById('btn-submit');
+            btn.disabled = true;
+            btn.innerHTML = `正在處理... <div class="loading-spinner border-2 border-white/30 border-t-white w-4 h-4 rounded-full"></div>`;
+
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                document.getElementById('form-container').classList.add('hidden');
+                document.getElementById('success-screen').classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch (err) {
+                console.error(err);
+                alert('提交失敗，請檢查網路狀態或 GAS 部署權限。');
+                btn.disabled = false;
+                btn.innerHTML = `提交報名表 <i data-lucide="clipboard-check" class="w-5 h-5"></i>`;
+                lucide.createIcons();
+            }
+        }
+
+        document.getElementById('btn-submit').addEventListener('click', handleSubmit);
+
+        // 初始化
+        window.onload = () => {
+            renderUI();
+            updateStep();
+        };
+    </script>
+</body>
+</html>
